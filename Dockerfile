@@ -62,4 +62,4 @@ RUN \
   && rm -rf /root/ngx_openresty
 WORKDIR $NGINX_PREFIX/
 ADD scripts/ /usr/bin/
-CMD ["dumb-init", "start"]
+CMD ["dumb-init", "baseStart"]

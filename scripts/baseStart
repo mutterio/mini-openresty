@@ -1,2 +1,2 @@
 #!/bin/sh
-nginx -g daemon off; error_log /dev/stderr info;
+/opt/openresty/nginx/sbin/nginx -p /opt/app -c /etc/nginx/nginx.conf -s reload

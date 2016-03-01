@@ -1,2 +1,2 @@
 #!/bin/sh
-nginx -s reload
+/opt/openresty/nginx/sbin/nginx -p /opt/app -c /etc/nginx/nginx.conf -s reload
