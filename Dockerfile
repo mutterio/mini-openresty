@@ -63,9 +63,6 @@ RUN \
       zlib \
   && cd /tmp \
 
-  && curl https://github.com/Yelp/dumb-init/releases/download/v1.0.0/dumb-init_1.0.0_amd64 -o /usr/local/bin/dumb-init \
-  && chmod +x /usr/local/bin/dumb-init \
-
   && curl -fSL https://www.openssl.org/source/openssl-${RESTY_OPENSSL_VERSION}.tar.gz -o openssl-${RESTY_OPENSSL_VERSION}.tar.gz \
   && tar xzf openssl-${RESTY_OPENSSL_VERSION}.tar.gz \
   && curl -fSL https://ftp.csx.cam.ac.uk/pub/software/programming/pcre/pcre-${RESTY_PCRE_VERSION}.tar.gz -o pcre-${RESTY_PCRE_VERSION}.tar.gz \
@@ -88,6 +85,5 @@ RUN \
 
 ENV PATH=$PATH:/usr/local/openresty/luajit/bin/:/usr/local/openresty/nginx/sbin/:/usr/local/openresty/bin/
 
-WORKDIR $NGINX_PREFIX/
 ADD scripts/ /usr/bin/
-CMD ["dumb-init", "baseStart"]
+CMD ["baseStart"]
