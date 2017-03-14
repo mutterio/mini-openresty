@@ -9,7 +9,7 @@ build: Dockerfile
 	docker build -t ${NAME}:${TAG} .
 
 tag: build
-	docker tag -f ${NAME}:${TAG} ${IMAGE_BASE}:${TAG}
+	docker tag ${NAME}:${TAG} ${IMAGE_BASE}:${TAG}
 
 publish: tag
 	docker push ${IMAGE_BASE}:${TAG}

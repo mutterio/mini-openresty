@@ -1,65 +1,93 @@
-FROM mutterio/mini-base
-ENV OPENRESTY_VERSION 1.9.7.3
-ENV OPENRESTY_PREFIX /opt/openresty
-ENV NGINX_PREFIX /opt/openresty/nginx
-ENV VAR_PREFIX /var/nginx
+FROM alpine:latest
 
-# NginX prefix is automatically set by OpenResty to $OPENRESTY_PREFIX/nginx
-# look for $ngx_prefix in https://github.com/openresty/ngx_openresty/blob/master/util/configure
-
-RUN wget -O /usr/local/bin/dumb-init https://github.com/Yelp/dumb-init/releases/download/v1.0.0/dumb-init_1.0.0_amd64
-RUN chmod +x /usr/local/bin/dumb-init
-
-
-RUN \
-  apk update \
-   && apk add make gcc musl-dev \
-      pcre-dev openssl-dev zlib-dev ncurses-dev readline-dev \
-      curl perl &&\
-  mkdir -p /root/ngx_openresty \
-  && cd /root/ngx_openresty \
-  && echo "==> Downloading OpenResty..." \
-  && curl -sSL http://openresty.org/download/openresty-${OPENRESTY_VERSION}.tar.gz | tar -xvz \
-  && cd openresty-* \
-  && echo "==> Configuring OpenResty..." \
-  && readonly NPROC=$(grep -c ^processor /proc/cpuinfo 2>/dev/null || 1) \
-  && echo "using upto $NPROC threads" \
-  && ./configure \
-    --prefix=$OPENRESTY_PREFIX \
-    --http-client-body-temp-path=$VAR_PREFIX/client_body_temp \
-    --http-proxy-temp-path=$VAR_PREFIX/proxy_temp \
-    --http-log-path=$VAR_PREFIX/access.log \
-    --error-log-path=$VAR_PREFIX/error.log \
-    --pid-path=$VAR_PREFIX/nginx.pid \
-    --lock-path=$VAR_PREFIX/nginx.lock \
-    --with-luajit \
-    --with-pcre-jit \
-    --with-ipv6 \
+# Docker Build Arguments
+ARG RESTY_VERSION="1.11.2.2"
+ARG RESTY_OPENSSL_VERSION="1.0.2j"
+ARG RESTY_PCRE_VERSION="8.39"
+ARG RESTY_J="1"
+ARG RESTY_CONFIG_OPTIONS="\
+    --with-file-aio \
+    --with-http_addition_module \
+    --with-http_auth_request_module \
+    --with-http_dav_module \
+    --with-http_flv_module \
+    --with-http_geoip_module=dynamic \
+    --with-http_gunzip_module \
     --with-http_gzip_static_module \
+    --with-http_image_filter_module=dynamic \
+    --with-http_mp4_module \
+    --with-http_random_index_module \
+    --with-http_realip_module \
+    --with-http_secure_link_module \
+    --with-http_slice_module \
     --with-http_ssl_module \
-    --without-http_ssi_module \
-    --without-http_userid_module \
+    --with-http_stub_status_module \
+    --with-http_sub_module \
+    --with-http_v2_module \
+    --with-http_xslt_module=dynamic \
+    --with-ipv6 \
+    --with-mail \
+    --with-mail_ssl_module \
+    --with-md5-asm \
+    --with-pcre-jit \
+    --with-sha1-asm \
+    --with-stream \
+    --with-stream_ssl_module \
+    --with-threads \
     --without-http_fastcgi_module \
     --without-http_uwsgi_module \
     --without-http_scgi_module \
-    --without-http_memcached_module \
-    -j${NPROC} \
-  && echo "==> Building OpenResty..." \
-  && make -j${NPROC} \
-  && echo "==> Installing OpenResty..." \
-  && make install \
-  && echo "==> Finishing..." \
-  && ln -sf $NGINX_PREFIX/sbin/nginx /usr/local/bin/nginx \
-  && ln -sf $NGINX_PREFIX/sbin/nginx /usr/local/bin/openresty \
-  && ln -sf $OPENRESTY_PREFIX/bin/resty /usr/local/bin/resty \
-  && ln -sf $OPENRESTY_PREFIX/luajit/bin/luajit-* $OPENRESTY_PREFIX/luajit/bin/lua \
-  && ln -sf $OPENRESTY_PREFIX/luajit/bin/luajit-* /usr/local/bin/lua \
-  && apk del \
-    make gcc musl-dev pcre-dev openssl-dev zlib-dev ncurses-dev readline-dev curl perl \
-  && apk add \
-    libpcrecpp libpcre16 libpcre32 openssl libssl1.0 pcre libgcc libstdc++ \
-  && rm -rf /var/cache/apk/* \
-  && rm -rf /root/ngx_openresty
+    "
+
+# These are not intended to be user-specified
+ARG _RESTY_CONFIG_DEPS="--with-openssl=/tmp/openssl-${RESTY_OPENSSL_VERSION} --with-pcre=/tmp/pcre-${RESTY_PCRE_VERSION}"
+
+
+RUN \
+  apk add --no-cache --virtual .build-deps \
+      build-base \
+      gd-dev \
+      geoip-dev \
+      libxslt-dev \
+      linux-headers \
+      make \
+      perl-dev \
+      readline-dev \
+      zlib-dev \
+  && apk add --no-cache \
+      curl \
+      gd \
+      geoip \
+      libgcc \
+      libxslt \
+      zlib \
+  && cd /tmp \
+
+  && curl https://github.com/Yelp/dumb-init/releases/download/v1.0.0/dumb-init_1.0.0_amd64 -o /usr/local/bin/dumb-init \
+  && chmod +x /usr/local/bin/dumb-init \
+
+  && curl -fSL https://www.openssl.org/source/openssl-${RESTY_OPENSSL_VERSION}.tar.gz -o openssl-${RESTY_OPENSSL_VERSION}.tar.gz \
+  && tar xzf openssl-${RESTY_OPENSSL_VERSION}.tar.gz \
+  && curl -fSL https://ftp.csx.cam.ac.uk/pub/software/programming/pcre/pcre-${RESTY_PCRE_VERSION}.tar.gz -o pcre-${RESTY_PCRE_VERSION}.tar.gz \
+  && tar xzf pcre-${RESTY_PCRE_VERSION}.tar.gz \
+  && curl -fSL https://openresty.org/download/openresty-${RESTY_VERSION}.tar.gz -o openresty-${RESTY_VERSION}.tar.gz \
+  && tar xzf openresty-${RESTY_VERSION}.tar.gz \
+  && cd /tmp/openresty-${RESTY_VERSION} \
+  && ./configure -j${RESTY_J} ${_RESTY_CONFIG_DEPS} ${RESTY_CONFIG_OPTIONS} \
+  && make -j${RESTY_J} \
+  && make -j${RESTY_J} install \
+  && cd /tmp \
+  && rm -rf \
+      openssl-${RESTY_OPENSSL_VERSION} \
+      openssl-${RESTY_OPENSSL_VERSION}.tar.gz \
+      openresty-${RESTY_VERSION}.tar.gz openresty-${RESTY_VERSION} \
+      pcre-${RESTY_PCRE_VERSION}.tar.gz pcre-${RESTY_PCRE_VERSION} \
+  && apk del .build-deps \
+  && ln -sf /dev/stdout /usr/local/openresty/nginx/logs/access.log \
+  && ln -sf /dev/stderr /usr/local/openresty/nginx/logs/error.log
+
+ENV PATH=$PATH:/usr/local/openresty/luajit/bin/:/usr/local/openresty/nginx/sbin/:/usr/local/openresty/bin/
+
 WORKDIR $NGINX_PREFIX/
 ADD scripts/ /usr/bin/
 CMD ["dumb-init", "baseStart"]
